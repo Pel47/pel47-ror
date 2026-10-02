@@ -2,13 +2,17 @@
   <h1 class="display-5 fw-bold">Department Student Directory</h1>
   <p class="lead">Explore the people, programs, and academic structure of the department.</p>
 
-  <%= link_to "Browse Students", students_path, class: "btn btn-primary btn-lg" %>
-  <%= link_to "Browse Teachers", teachers_path, class: "btn btn-outline-secondary btn-lg" %>
-
+  <%# Task 5: d-flex lines the buttons up in a row, gap-2 spaces them evenly. %>
+  <div class="d-flex flex-wrap gap-2">
+    <%= link_to "Browse Students", students_path, class: "btn btn-primary btn-lg" %>
+    <%# Task 1 %>
+    <%= link_to "Browse Teachers", teachers_path, class: "btn btn-outline-secondary btn-lg" %>
+  </div>
 </div>
 
 <h2 class="h4 mb-3">Explore the Directory</h2>
 
+<%# Tasks 2 and 6: every card is a col inside the SAME row; the grid wraps them. %>
 <div class="row g-3 mb-4">
   <div class="col-sm-6 col-lg-4">
     <div class="card h-100">
@@ -20,10 +24,66 @@
       </div>
     </div>
   </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Students</h3>
+        <p class="card-text text-body-secondary">Everyone enrolled in the department.</p>
+        <%= link_to "View all", students_path, class: "btn btn-sm btn-primary" %>
+        <%= link_to "Add new", new_student_path, class: "btn btn-sm btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Teachers</h3>
+        <p class="card-text text-body-secondary">The faculty and what they teach.</p>
+        <%= link_to "View all", teachers_path, class: "btn btn-sm btn-primary" %>
+        <%= link_to "Add new", new_teacher_path, class: "btn btn-sm btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Subjects</h3>
+        <p class="card-text text-body-secondary">Courses offered, with units and rates.</p>
+        <%= link_to "View all", subjects_path, class: "btn btn-sm btn-primary" %>
+        <%= link_to "Add new", new_subject_path, class: "btn btn-sm btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Sections</h3>
+        <p class="card-text text-body-secondary">Class blocks, rooms and schedules.</p>
+        <%= link_to "View all", sections_path, class: "btn btn-sm btn-primary" %>
+        <%= link_to "Add new", new_section_path, class: "btn btn-sm btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Class Lists</h3>
+        <p class="card-text text-body-secondary">Who is enrolled in which section.</p>
+        <%= link_to "View all", classlists_path, class: "btn btn-sm btn-primary" %>
+        <%= link_to "Add new", new_classlist_path, class: "btn btn-sm btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
 </div>
 
 <h2 class="h4 mb-3">Directory Overview</h2>
 
+<%# Tasks 3 and 7: each count = one controller line + one box here. %>
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-4 col-xl-2">
     <div class="card text-center h-100">
@@ -33,11 +93,56 @@
       </div>
     </div>
   </div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <div class="display-6 fw-bold"><%= @teacher_count %></div>
+        <div class="text-body-secondary">Teachers</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <div class="display-6 fw-bold"><%= @department_count %></div>
+        <div class="text-body-secondary">Departments</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <div class="display-6 fw-bold"><%= @subject_count %></div>
+        <div class="text-body-secondary">Subjects</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <div class="display-6 fw-bold"><%= @section_count %></div>
+        <div class="text-body-secondary">Sections</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <div class="display-6 fw-bold"><%= @classlist_count %></div>
+        <div class="text-body-secondary">Class Lists</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <h2 class="h4 mb-3">Meet Our Faculty</h2>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-3">
   <% @teachers.each do |teacher| %>
     <div class="col-sm-6 col-lg-4">
       <div class="card h-100 text-center">
@@ -45,8 +150,17 @@
           <%= image_tag "avatar.svg", alt: teacher.name, width: 96, height: 96, class: "rounded-circle mb-3" %>
           <h3 class="card-title h5"><%= teacher.name %></h3>
           <p class="card-text text-body-secondary"><%= teacher.specialization %></p>
+          <%# Task 4 %>
+          <p class="card-text small text-body-secondary"><%= teacher.department.name %></p>
+          <%# Task 8: passing the teacher object links to its show page (/teachers/:id). %>
+          <%= link_to "View profile", teacher, class: "btn btn-sm btn-outline-primary" %>
         </div>
       </div>
     </div>
   <% end %>
+</div>
+
+<%# Task 8 %>
+<div class="mb-4">
+  <%= link_to "See all faculty →", teachers_path, class: "btn btn-link" %>
 </div>
