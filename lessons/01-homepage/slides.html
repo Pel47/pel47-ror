@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building a Homepage in Rails</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c13; --bg-2:#0e1220; --panel:#131828; --panel-2:#1a2135; --code-bg:#0c1019;
+    --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.16);
+    --text:#f1eee6; --mid:#aeb5cb; --low:#8088a6;
+    --ruby:#ff5a5f; --ruby-2:#c9363c; --ruby-glow:rgba(255,90,95,.32);
+    --teal:#3fd5c6; --teal-glow:rgba(63,213,198,.28);
+    --amber:#f5b544; --amber-glow:rgba(245,181,68,.28);
+    --display:'Chakra Petch','Trebuchet MS',sans-serif;
+    --body:'Manrope','Segoe UI',Arial,sans-serif;
+    --mono:'JetBrains Mono',Consolas,'Courier New',monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--body);overflow:hidden;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--ruby-glow)}
+  :focus-visible{outline:2px solid var(--ruby);outline-offset:3px}
+  h1,h2,h3{margin:0;font-family:var(--display);font-weight:700}
+  p{margin:0}
+  code,.mono,pre{font-family:var(--mono);font-variant-ligatures:none}
+
+  /* ---------- stage ---------- */
+  .stage-outer{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 15% 0%,rgba(255,90,95,.07),transparent 55%),radial-gradient(ellipse at 90% 100%,rgba(63,213,198,.07),transparent 55%),var(--bg)}
+  .stage{width:1920px;height:1080px;position:relative;flex:none;background:var(--bg);overflow:hidden;box-shadow:0 0 140px rgba(0,0,0,.6)}
+  .stage::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+    background-size:64px 64px;mask-image:radial-gradient(ellipse at center,#000 0%,transparent 80%)}
+
+  .slide{position:absolute;inset:0;padding:64px 112px 132px;display:flex;flex-direction:column;
+    opacity:0;transform:translateX(56px);pointer-events:none;
+    transition:opacity .45s cubic-bezier(.22,.61,.36,1),transform .45s cubic-bezier(.22,.61,.36,1)}
+  .slide.active{opacity:1;transform:none;pointer-events:auto;z-index:2}
+  .slide.past{transform:translateX(-56px)}
+  @media (prefers-reduced-motion:reduce){.slide{transition:opacity .2s linear;transform:none!important}}
+
+  /* ---------- header ---------- */
+  .head{display:flex;align-items:flex-start;justify-content:space-between;gap:40px;min-height:118px}
+  .kicker{font-family:var(--mono);font-size:18px;letter-spacing:.16em;color:var(--ruby);display:flex;align-items:center;gap:14px;margin-bottom:14px;text-transform:uppercase}
+  .kicker::before{content:"";width:28px;height:2px;background:currentColor}
+  .kicker.teal{color:var(--teal)} .kicker.amber{color:var(--amber)}
+  .title{font-size:58px;line-height:1.08;letter-spacing:-.01em}
+  .title .r{color:var(--ruby)} .title .t{color:var(--teal)}
+  .sub{font-size:25px;color:var(--mid);margin-top:14px;line-height:1.45;max-width:1300px}
+  .body{flex:1;min-height:0;display:flex;flex-direction:column;margin-top:30px}
+
+  /* stage tracker */
+  .tracker{display:flex;align-items:center;flex:none;margin-top:6px}
+  .tk{display:flex;flex-direction:column;align-items:center;gap:8px;width:76px;position:relative}
+  .tk::before{content:"";position:absolute;top:13px;right:50%;width:100%;height:2px;background:var(--line-strong);z-index:0}
+  .tk:first-child::before{display:none}
+  .tk.done::before,.tk.now::before{background:var(--ruby)}
+  .tk i{width:28px;height:28px;border-radius:50%;border:2px solid var(--line-strong);background:var(--bg-2);z-index:1;display:flex;align-items:center;justify-content:center;font-style:normal;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--low)}
+  .tk.done i{background:var(--ruby-2);border-color:var(--ruby);color:var(--text)}
+  .tk.now i{background:var(--ruby);border-color:#ffd0d1;color:#1b0b0c;box-shadow:0 0 22px var(--ruby-glow);transform:scale(1.18)}
+  .tk span{font-family:var(--mono);font-size:13px;color:var(--low);letter-spacing:.04em;white-space:nowrap}
+  .tk.now span{color:var(--text)}
+
+  /* ---------- layout helpers ---------- */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:44px;flex:1;min-height:0}
+  .cols.wide-left{grid-template-columns:1.08fr .92fr}
+  .cols.wide-right{grid-template-columns:.9fr 1.1fr}
+  .col{display:flex;flex-direction:column;gap:22px;min-height:0;min-width:0}
+  .row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .grow{flex:1;min-height:0}
+  .center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;flex:1}
+
+  /* numbered step labels */
+  .lbl{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:16px;letter-spacing:.12em;color:var(--mid);text-transform:uppercase}
+  .lbl b{width:30px;height:30px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;color:#14070a;background:var(--ruby)}
+  .lbl.teal b{background:var(--teal)} .lbl.amber b{background:var(--amber)}
+  .lbl .file{margin-left:auto;text-transform:none;letter-spacing:0;color:var(--low);font-size:15px}
+
+  /* chips */
+  .chip{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:.06em;padding:8px 16px;border-radius:100px;border:1px solid var(--line-strong);color:var(--mid);background:rgba(255,255,255,.03);white-space:nowrap}
+  .chip.ruby{color:var(--ruby);border-color:rgba(255,90,95,.45);background:rgba(255,90,95,.08)}
+  .chip.teal{color:var(--teal);border-color:rgba(63,213,198,.45);background:rgba(63,213,198,.08)}
+  .chip.amber{color:var(--amber);border-color:rgba(245,181,68,.45);background:rgba(245,181,68,.08)}
+
+  /* panels */
+  .panel{border:1px solid var(--line);background:rgba(22,28,46,.6);border-radius:12px;padding:26px 30px;position:relative;
+    clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px))}
+  .panel::before{content:"";position:absolute;left:0;top:0;width:100%;height:3px;background:linear-gradient(90deg,var(--ruby),transparent)}
+  .panel.teal::before{background:linear-gradient(90deg,var(--teal),transparent)}
+  .panel.amber::before{background:linear-gradient(90deg,var(--amber),transparent)}
+  .panel h3{font-size:28px;margin-bottom:12px}
+
+  /* explain bullets */
+  .explain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px}
+  .explain li{font-size:23px;line-height:1.42;color:var(--text);padding-left:30px;position:relative}
+  .explain li::before{content:"";position:absolute;left:4px;top:13px;width:10px;height:10px;transform:rotate(45deg);background:var(--ruby);box-shadow:0 0 10px var(--ruby-glow)}
+  .explain.small li{font-size:21px}
+  .explain code,.prose code,td code,.task code,.callout code,.sub code{font-size:.86em;background:rgba(255,255,255,.07);border:1px solid var(--line);padding:1px 7px;border-radius:5px;color:#ffd7d8}
+
+  /* code panel */
+  .code{background:var(--code-bg);border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  .code-bar{display:flex;align-items:center;gap:12px;padding:10px 14px 10px 18px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.025)}
+  .code-bar .dots{display:flex;gap:7px}.code-bar .dots i{width:11px;height:11px;border-radius:50%;background:#2a3147}
+  .code-bar .dots i:first-child{background:var(--ruby)}
+  .code-bar .fname{font-family:var(--mono);font-size:15px;color:var(--mid)}
+  .code-bar .tag{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--teal);border:1px solid rgba(63,213,198,.4);padding:3px 8px;border-radius:4px}
+  .copy{margin-left:auto;font-family:var(--mono);font-size:13px;letter-spacing:.08em;color:var(--mid);background:transparent;border:1px solid var(--line-strong);border-radius:6px;padding:6px 12px;cursor:pointer}
+  .copy:hover{color:var(--text);border-color:var(--ruby)}
+  .copy.ok{color:var(--teal);border-color:var(--teal)}
+  pre{margin:0;padding:16px 0;overflow:auto;font-family:var(--mono);font-size:19px;line-height:1.6;counter-reset:ln;tab-size:2}
+  .code.sm pre{font-size:17px}
+  .code.xs pre{font-size:15px;line-height:1.55}
+  pre .ln{display:block;padding:0 20px 0 70px;text-indent:-70px;white-space:pre-wrap;overflow-wrap:break-word}
+  pre .ln::before{counter-increment:ln;content:counter(ln);display:inline-block;width:70px;padding-right:18px;text-indent:0;text-align:right;color:#3d4560;user-select:none}
+  pre.nonum .ln::before{display:none} pre.nonum .ln{padding-left:20px;text-indent:0}
+  pre .ln.hl{background:linear-gradient(90deg,rgba(63,213,198,.16),rgba(63,213,198,.03));box-shadow:inset 3px 0 0 var(--teal)}
+  .k{color:#ff7a85}.s{color:#f5c56b}.v{color:#6fd9cc}.c{color:#5d6684;font-style:italic}.n{color:#f5c56b}
+  .C{color:#8fb8ff}.tg{color:#ff7a85}.at{color:#8fb8ff}.e{color:#6fd9cc;font-weight:600}.p{color:#c3c9dc}
+
+  /* screenshots */
+  .shot{border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;background:#05070c;cursor:zoom-in;position:relative;display:block;width:100%}
+  .shot img{display:block;width:100%;height:auto}
+  .shot::after{content:"⤢ click to zoom";position:absolute;right:12px;bottom:10px;font-family:var(--mono);font-size:13px;color:var(--mid);background:rgba(10,12,19,.8);padding:4px 9px;border-radius:5px;opacity:0;transition:opacity .2s}
+  .shot:hover::after{opacity:1}
+  .result{display:flex;align-items:center;gap:12px}
+
+  /* tables */
+  table.t{width:100%;border-collapse:collapse;font-size:21px}
+  table.t th{text-align:left;font-family:var(--mono);font-size:14px;letter-spacing:.1em;color:var(--low);text-transform:uppercase;padding:10px 16px;border-bottom:1px solid var(--line-strong)}
+  table.t td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.4}
+  table.t td.m{font-family:var(--mono);font-size:18px;color:#ffd7d8}
+
+  /* flow diagram */
+  .flow{display:flex;align-items:stretch;gap:0}
+  .node{flex:1;border:1px solid var(--line-strong);background:var(--panel);border-radius:12px;padding:22px 20px;display:flex;flex-direction:column;gap:10px;position:relative}
+  .node .nk{font-family:var(--mono);font-size:14px;letter-spacing:.14em;color:var(--ruby)}
+  .node h3{font-size:30px}
+  .node .nf{font-family:var(--mono);font-size:16px;color:var(--teal);word-break:break-all}
+  .node p{font-size:19px;color:var(--mid);line-height:1.4}
+  .arrow{width:46px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--ruby);font-size:30px}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+  .stat{border:1px solid var(--line-strong);border-radius:8px;background:rgba(255,255,255,.025);padding:18px 10px;text-align:center}
+  .stat b{display:block;font-family:var(--mono);font-size:40px;color:var(--teal)}
+  .stat span{font-family:var(--mono);font-size:13px;letter-spacing:.08em;color:var(--mid);text-transform:uppercase}
+
+  /* task cards */
+  .tasks{display:grid;grid-template-columns:1fr 1fr;gap:36px;flex:1;min-height:0}
+  .task{border:1px solid var(--line-strong);border-radius:14px;background:rgba(19,24,40,.75);padding:22px 26px;display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+  .task-head{display:flex;align-items:center;gap:14px}
+  .task-head h3{font-size:30px}
+  .task-head .chip{margin-left:auto}
+  .task .code{flex:none}
+  .task .where{font-size:20px;color:var(--mid);line-height:1.4}
+  .task .look,.task .ask{font-size:20px;line-height:1.45;color:var(--text)}
+  .task .ask{color:#ffe3a6}
+
+  /* misc */
+  .prose{font-size:24px;line-height:1.5;color:var(--mid)}
+  .prose b{color:var(--text)}
+  .big{font-family:var(--display);font-size:120px;line-height:1;color:var(--ruby);text-shadow:0 0 80px var(--ruby-glow)}
+  .callout{border-left:4px solid var(--amber);background:rgba(245,181,68,.07);padding:16px 22px;border-radius:0 10px 10px 0;font-size:22px;line-height:1.45;color:var(--text)}
+  .callout.teal{border-color:var(--teal);background:rgba(63,213,198,.07)}
+  .callout.ruby{border-color:var(--ruby);background:rgba(255,90,95,.07)}
+  .legend{display:flex;flex-direction:column;gap:14px}
+  .legend .it{display:flex;gap:18px;align-items:flex-start;padding:16px 20px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02)}
+  .legend .it .no{font-family:var(--mono);font-size:15px;font-weight:700;color:#14070a;background:var(--ruby);border-radius:6px;padding:4px 8px;flex:none}
+  .legend .it h3{font-size:26px} .legend .it p{font-size:19px;color:var(--mid);margin-top:4px}
+
+  /* ---------- controls ---------- */
+  .controls{position:absolute;left:112px;right:112px;bottom:44px;display:flex;align-items:center;gap:22px;z-index:10}
+  .nb{background:rgba(255,255,255,.04);border:1px solid var(--line-strong);color:var(--text);width:52px;height:52px;border-radius:50%;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:var(--display)}
+  .nb:hover:not(:disabled){border-color:var(--ruby);color:var(--ruby)}
+  .nb:disabled{opacity:.3;cursor:default}
+  .prog{flex:1}
+  .track{height:4px;background:var(--line-strong);border-radius:100px;overflow:hidden}
+  .fill{height:100%;background:linear-gradient(90deg,var(--ruby-2),var(--ruby));transition:width .4s ease}
+  .meta{display:flex;justify-content:space-between;margin-top:10px;font-family:var(--mono);font-size:15px;color:var(--low);letter-spacing:.05em}
+  .fs{background:transparent;border:1px solid var(--line-strong);color:var(--mid);height:52px;padding:0 20px;border-radius:8px;font-family:var(--mono);font-size:14px;letter-spacing:.06em;cursor:pointer}
+  .fs:hover{border-color:var(--teal);color:var(--teal)}
+
+  /* lightbox */
+  .lb{position:fixed;inset:0;background:rgba(5,6,10,.92);display:none;align-items:center;justify-content:center;z-index:100;cursor:zoom-out;padding:2vh 2vw}
+  .lb.open{display:flex}
+  .lb img{max-width:96vw;max-height:94vh;border-radius:8px;box-shadow:0 20px 80px rgba(0,0,0,.6)}
+  .lb .hint{position:fixed;top:14px;right:22px;font-family:var(--mono);font-size:14px;color:var(--mid)}
+</style>
+</head>
+<body>
+<div class="stage-outer" id="outer">
+<div class="stage" id="stage">
+
+<!-- ============================================================ 01 COVER -->
+<section class="slide" data-title="Cover">
+  <div class="center" style="gap:0">
+    <div class="kicker" style="justify-content:center">Database Management Systems · QCPE110 · GO31</div>
+    <h1 class="title" style="font-size:104px;max-width:1500px">Building a <span class="r">Homepage</span> in Rails</h1>
+    <p class="sub" style="font-size:30px;margin-top:24px;max-width:1100px">From the default Rails page to a real landing page, one file at a time.</p>
+    <div class="row" style="justify-content:center;margin-top:48px">
+      <span class="chip ruby">RAILS 8.1</span><span class="chip">RUBY 4.0</span><span class="chip">BOOTSTRAP 5.3</span><span class="chip">MYSQL 8.4</span><span class="chip teal">DOCKER</span>
+    </div>
+    <div class="tracker" style="margin-top:64px" data-tracker="0"></div>
+    <p style="margin-top:56px;font-family:var(--mono);font-size:20px;letter-spacing:.12em;color:var(--mid)">KURT TAPEL</p>
+  </div>
+</section>
+
+<!-- ============================================================ 02 WHAT WE'RE BUILDING -->
+<section class="slide" data-title="What we're building">
+  <div class="head"><div>
+    <div class="kicker">The goal</div>
+    <h2 class="title">What we're <span class="r">building</span></h2>
+    <p class="sub">A homepage that greets people, sends them where they need to go, and shows live data.</p>
+  </div></div>
+  <div class="body"><div class="cols wide-left">
+    <div class="col"><figure class="shot" style="margin:0"><img src="screenshots/step5.4-faculty-cards.png" alt="The finished homepage: hero, explore card, student count and three faculty cards"></figure></div>
+    <div class="col legend">
+      <div class="it"><span class="no">5.1</span><div><h3>Hero</h3><p>Title, intro and a call-to-action button</p></div></div>
+      <div class="it"><span class="no">5.2</span><div><h3>Explore the Directory</h3><p>Cards that link to every part of the app</p></div></div>
+      <div class="it"><span class="no">5.3</span><div><h3>Directory Overview</h3><p>Live counts straight from the database</p></div></div>
+      <div class="it"><span class="no">5.4</span><div><h3>Meet Our Faculty</h3><p>Teacher cards generated by a loop</p></div></div>
+      <div class="callout teal" style="font-size:20px">Steps 1–4 come first: they make the homepage <b>exist</b>. Step 5 makes it <b>good</b>.</div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 03 WHERE WE START -->
+<section class="slide" data-title="Where we start">
+  <div class="head"><div>
+    <div class="kicker amber">Starting point</div>
+    <h2 class="title">Where we <span class="r">start</span></h2>
+    <p class="sub">Our app has pages for students, teachers, subjects… but no homepage.</p>
+  </div></div>
+  <div class="body"><div class="cols wide-right">
+    <div class="col" style="justify-content:center">
+      <ul class="explain">
+        <li>Visiting <code>/</code> shows Rails' <b>default welcome page</b>.</li>
+        <li>It only proves Rails is running: version numbers and a logo.</li>
+        <li>Rails shows it because <b>no route</b> tells it what <code>/</code> should be.</li>
+        <li>By the end of today, <code>/</code> is <b>our</b> page.</li>
+      </ul>
+    </div>
+    <div class="col"><figure class="shot" style="margin:0"><img src="screenshots/step0-rails-welcome.png" alt="Default Ruby on Rails welcome page"></figure></div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 04 HOW A PAGE IS BUILT -->
+<section class="slide" data-title="How a Rails page is built">
+  <div class="head"><div>
+    <div class="kicker">The big idea</div>
+    <h2 class="title">How a Rails page is <span class="r">built</span></h2>
+    <p class="sub">Every page goes through the same four pieces. Rails finds each one by <b style="color:var(--text)">naming convention</b>.</p>
+  </div></div>
+  <div class="body" style="gap:34px">
+    <div class="flow">
+      <div class="node"><div class="nk">01 · ROUTE</div><h3>Address book</h3><div class="nf">config/routes.rb</div><p>Which code handles this URL?</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">02 · CONTROLLER</div><h3>Manager</h3><div class="nf">home_controller.rb</div><p>Gets the data ready.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">03 · VIEW</div><h3>Picture</h3><div class="nf">home/index.html.erb</div><p>HTML for this page's content.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">04 · LAYOUT</div><h3>Frame</h3><div class="nf">layouts/application.html.erb</div><p>Sidebar + <code style="color:#ffd7d8">&lt;%= yield %&gt;</code> hole.</p></div>
+    </div>
+    <div class="cols" style="flex:none">
+      <div class="callout ruby">The <b>layout</b> is the picture frame, the <b>view</b> is the picture. Every page shares the same frame: that's why every page has the sidebar.</div>
+      <div class="callout teal">Our homepage will be: <code>root "home#index"</code> → <code>HomeController#index</code> → <code>home/index.html.erb</code> → inside the layout.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 05 STEP 1 -->
+<section class="slide" data-title="Step 1 · Route" data-stage="1">
+  <div class="head"><div>
+    <div class="kicker">Step 1 · Routing</div>
+    <h2 class="title">Tell Rails what <span class="r">/</span> means</h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <div class="lbl"><b>1</b>Copy this code <span class="file">add line 2</span></div>
+      <div class="code" data-file="config/routes.rb" data-lang="ruby" data-hl="2"><script type="text/plain">
+Rails.application.routes.draw do
+  root "home#index"
+
+  resources :classlists
+  resources :sections
+  resources :subjects
+  resources :teachers
+  resources :students
+  resources :departments
+end
+</script></div>
+      <div class="lbl"><b>3</b>Explain the code</div>
+      <ul class="explain">
+        <li><code>root</code> is the special route for <code>/</code>.</li>
+        <li><code>"home#index"</code> = <b>HomeController</b>, <b>index</b> action.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="result"><div class="lbl amber"><b>2</b>Look at what it does</div><span class="chip amber" style="margin-left:auto">EXPECTED ERROR</span></div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step1-missing-controller.png" alt="MissingController error: uninitialized constant HomeController"></figure>
+      <ul class="explain small">
+        <li>The route <b>works</b>: Rails went looking for <code>HomeController</code>…</li>
+        <li>…and it doesn't exist yet. <b>Read the red title, skip the stack trace.</b></li>
+      </ul>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 06 STEP 2 -->
+<section class="slide" data-title="Step 2 · Controller" data-stage="2">
+  <div class="head"><div>
+    <div class="kicker">Step 2 · Controller</div>
+    <h2 class="title">Create the <span class="r">HomeController</span></h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <div class="lbl"><b>1</b>Copy this code <span class="file">new file</span></div>
+      <div class="code" data-file="app/controllers/home_controller.rb" data-lang="ruby" data-tag="NEW"><script type="text/plain">
+class HomeController < ApplicationController
+  def index
+  end
+end
+</script></div>
+      <div class="lbl"><b>3</b>Explain the code</div>
+      <ul class="explain">
+        <li><code>HomeController</code> lives in <code>home_controller.rb</code>: CamelCase class, snake_case file.</li>
+        <li><code>&lt; ApplicationController</code> inherits the app-wide settings.</li>
+        <li>An <b>empty action</b> still works: it means "show the view with my name".</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="result"><div class="lbl amber"><b>2</b>Look at what it does</div><span class="chip amber" style="margin-left:auto">EXPECTED ERROR</span></div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step2-missing-template.png" alt="Error: HomeController#index is missing a template for request formats text/html"></figure>
+      <div class="callout">Progress! The controller exists now. Rails even names the file it wants next: <code>app/views/home/index.html.erb</code>. <b>The error tells you the next step.</b></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 07 STEP 3 -->
+<section class="slide" data-title="Step 3 · View" data-stage="3">
+  <div class="head"><div>
+    <div class="kicker">Step 3 · View</div>
+    <h2 class="title">Give the page some <span class="r">content</span></h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <div class="lbl"><b>1</b>Copy this code <span class="file">new folder + file</span></div>
+      <div class="code" data-file="app/views/home/index.html.erb" data-lang="erb" data-tag="NEW"><script type="text/plain">
+<h1>Welcome to the homepage of your very lively app!</h1>
+</script></div>
+      <div class="lbl"><b>3</b>Explain the code</div>
+      <ul class="explain small">
+        <li>Folder = controller (<code>home</code>), file = action (<code>index</code>), <code>.html.erb</code> = HTML + Ruby.</li>
+        <li>You wrote <b>one line</b>, but the page has a sidebar: the <b>layout</b> wrapped your view.</li>
+      </ul>
+      <div class="code xs" data-file="View Page Source (Ctrl+U)" data-lang="html" data-hl="4"><script type="text/plain">
+<!-- BEGIN app/views/layouts/application.html.erb -->
+  <main class="flex-grow-1 p-4">
+    <!-- BEGIN app/views/home/index.html.erb -->
+    <h1>Welcome to the homepage of your very lively app!</h1>
+    <!-- END app/views/home/index.html.erb -->
+  </main>
+<!-- END app/views/layouts/application.html.erb -->
+</script></div>
+    </div>
+    <div class="col">
+      <div class="result"><div class="lbl teal"><b>2</b>Look at what it does</div><span class="chip teal" style="margin-left:auto">IT WORKS</span></div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step3-welcome-page.png" alt="The welcome text shown inside the app layout with the sidebar"></figure>
+      <div class="callout teal">Your <code>&lt;h1&gt;</code> landed exactly where the layout says <code>&lt;%= yield %&gt;</code>. Frame + picture.</div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 08 STEP 4 -->
+<section class="slide" data-title="Step 4 · Home link" data-stage="4">
+  <div class="head"><div>
+    <div class="kicker">Step 4 · Path helpers</div>
+    <h2 class="title">Add <span class="r">Home</span> to the sidebar</h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <div class="lbl"><b>1</b>Copy this code <span class="file">above the Students link</span></div>
+      <div class="code sm" data-file="app/views/layouts/application.html.erb" data-lang="erb" data-hl="2"><script type="text/plain">
+<ul class="nav nav-pills flex-column gap-1">
+  <li class="nav-item"><%= sidebar_link "Home", root_path, "home" %></li>
+  <li class="nav-item"><%= sidebar_link "Students", students_path, "students" %></li>
+  <li class="nav-item"><%= sidebar_link "Departments", departments_path, "departments" %></li>
+  ...
+</ul>
+</script></div>
+      <div class="lbl"><b>3</b>Explain the code</div>
+      <ul class="explain">
+        <li><code>root_path</code> was created by your Step 1 route. It means <code>"/"</code>.</li>
+        <li><code>sidebar_link</code> (in <code>ApplicationHelper</code>) adds <code>active</code> when the controller is <code>"home"</code>.</li>
+        <li>One line in the layout → a Home link on <b>every</b> page.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="result"><div class="lbl teal"><b>2</b>Look at what it does</div><span class="chip teal" style="margin-left:auto">IT WORKS</span></div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step4-home-link-active.png" alt="Home link at the top of the sidebar, highlighted"></figure>
+      <div class="callout teal">Click <b>Students</b>: the highlight moves. Click <b>Home</b>: you're back. The homepage now <b>exists</b>.</div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 09 SAMPLE DATA -->
+<section class="slide" data-title="Before Step 5 · Sample data">
+  <div class="head"><div>
+    <div class="kicker teal">Before Step 5 · Seeds</div>
+    <h2 class="title">Give the app some <span class="t">data</span></h2>
+    <p class="sub">Counts and faculty cards need records to show. <code style="font-size:.9em">db/seeds.rb</code> creates them in one command.</p>
+  </div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <div class="code xs" data-file="db/seeds.rb (excerpt)" data-lang="ruby"><script type="text/plain">
+dpwh = Department.find_or_create_by!(name: "Department of Public Works and Highways") do |d|
+  d.location = "Bonifacio Drive, Port Area, Manila"
+end
+
+Teacher.find_or_create_by!(name: "Robert Downey Jr.") do |t|
+  t.specialization = "Iron Man"
+  t.email = "robert-downey-jr@example.com"
+  t.department = dpwh
+end
+</script></div>
+      <div class="code xs" data-file="terminal" data-lang="bash"><script type="text/plain">
+docker compose run --rm web bin/rails db:seed
+</script></div>
+      <ul class="explain small">
+        <li><code>find_or_create_by!</code> creates a record <b>only if it's missing</b>: safe to run twice.</li>
+        <li>Create in dependency order: departments → teachers → subjects → sections → students → class lists.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="stats">
+        <div class="stat"><b>2</b><span>Depts</span></div><div class="stat"><b>8</b><span>Teachers</span></div><div class="stat"><b>4</b><span>Subjects</span></div>
+        <div class="stat"><b>8</b><span>Sections</span></div><div class="stat"><b>40</b><span>Students</span></div><div class="stat"><b>160</b><span>Classlists</span></div>
+      </div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step5.1-browse-students-click.png" alt="Students table filled with 40 seeded students"></figure>
+      <div class="callout teal" style="font-size:20px">Every student shows <b>4 subjects · 12 units · ₱12,000</b>. Nobody typed those: the class-list callbacks computed them.</div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 10 STEP 5.1 -->
+<section class="slide" data-title="Step 5.1 · Hero" data-stage="5">
+  <div class="head"><div>
+    <div class="kicker">Step 5.1 · Bootstrap + link_to</div>
+    <h2 class="title">The <span class="r">hero</span> section</h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols wide-left">
+    <div class="col">
+      <div class="lbl"><b>1</b>Copy this code <span class="file">replace the &lt;h1&gt;</span></div>
+      <div class="code sm" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<div class="p-5 mb-4 bg-body-tertiary rounded-3">
+  <h1 class="display-5 fw-bold">Department Student Directory</h1>
+  <p class="lead">Explore the people, programs, and academic structure of the department.</p>
+
+  <%= link_to "Browse Students", students_path, class: "btn btn-primary btn-lg" %>
+</div>
+</script></div>
+      <div class="lbl"><b>3</b>Explain the code</div>
+      <table class="t" style="font-size:19px">
+        <tr><td class="m">p-5 · mb-4</td><td>Padding inside · margin below</td></tr>
+        <tr><td class="m">bg-body-tertiary rounded-3</td><td>Soft grey box, rounded corners</td></tr>
+        <tr><td class="m">display-5 fw-bold · lead</td><td>Big bold title · softer intro text</td></tr>
+        <tr><td class="m">link_to … students_path</td><td>Renders <code>&lt;a href="/students"&gt;</code></td></tr>
+      </table>
+    </div>
+    <div class="col">
+      <div class="result"><div class="lbl teal"><b>2</b>Look at what it does</div><span class="chip teal" style="margin-left:auto">IT WORKS</span></div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step5.1-hero.png" alt="Hero section with title, intro and Browse Students button"></figure>
+      <ul class="explain small">
+        <li>No CSS file: <b>Bootstrap classes</b> do all the styling.</li>
+        <li>Use <b>path helpers</b>, not typed URLs. If a route changes, every link updates.</li>
+      </ul>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 11 ROUTES PAGE -->
+<section class="slide" data-title="Finding helper names" data-stage="5">
+  <div class="head"><div>
+    <div class="kicker teal">Tool · /rails/info/routes</div>
+    <h2 class="title">Where do helper names <span class="t">come from?</span></h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <figure class="shot" style="margin:0"><img src="screenshots/step5.1-rails-info-routes.png" alt="The Rails routes page filtered by teacher"></figure>
+      <div class="callout teal" style="font-size:20px">Open <code>/rails/info/routes</code> while the app runs (development only). Type in the search box to filter.</div>
+    </div>
+    <div class="col">
+      <table class="t">
+        <tr><th>Helper</th><th>Path</th><th>Meaning</th></tr>
+        <tr><td class="m">teachers_path</td><td class="m" style="color:var(--mid)">/teachers</td><td><b>All</b> teachers (no id)</td></tr>
+        <tr><td class="m">new_teacher_path</td><td class="m" style="color:var(--mid)">/teachers/new</td><td>The "add" form</td></tr>
+        <tr><td class="m">teacher_path(t)</td><td class="m" style="color:var(--mid)">/teachers/:id</td><td><b>One</b> teacher (needs id)</td></tr>
+        <tr><td class="m">edit_teacher_path(t)</td><td class="m" style="color:var(--mid)">/teachers/:id/edit</td><td>Edit one teacher</td></tr>
+      </table>
+      <div class="callout"><b>Plural = list, singular = one record.</b> <code>teacher_path</code> without an id fails with <i>missing required keys: [:id]</i>.</div>
+      <ul class="explain small"><li>One line, <code>resources :teachers</code>, created all of these.</li></ul>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 12 STEP 5.2 -->
+<section class="slide" data-title="Step 5.2 · Explore card" data-stage="6">
+  <div class="head"><div>
+    <div class="kicker">Step 5.2 · Grid + cards</div>
+    <h2 class="title">Explore the <span class="r">directory</span></h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols wide-left">
+    <div class="col">
+      <div class="lbl"><b>1</b>Copy this code <span class="file">below the hero</span></div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<h2 class="h4 mb-3">Explore the Directory</h2>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Departments</h3>
+        <p class="card-text text-body-secondary">Offices and where to find them.</p>
+        <%= link_to "View all", departments_path, class: "btn btn-sm btn-primary" %>
+        <%= link_to "Add new", new_department_path, class: "btn btn-sm btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
+</div>
+</script></div>
+      <div class="lbl"><b>3</b>Explain the code</div>
+      <ul class="explain small">
+        <li>Three layers, always: <code>row</code> → <code>col-…</code> → <code>card</code>.</li>
+        <li><code>col-sm-6 col-lg-4</code>: a row has 12 units. Phone: full · tablet: 2 per row · desktop: 3 per row.</li>
+        <li><code>g-3</code> = gap between cards · <code>h-100</code> = equal heights.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="result"><div class="lbl teal"><b>2</b>Look at what it does</div><span class="chip teal" style="margin-left:auto">IT WORKS</span></div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step5.2-departments-card.png" alt="One Departments card under the hero"></figure>
+      <div class="row" style="align-items:flex-start;flex-wrap:nowrap;gap:20px">
+        <figure class="shot" style="margin:0;width:44%;flex:none"><img src="screenshots/step5.2-narrow-window.png" alt="Same page in a narrow window: the card takes half the width"></figure>
+        <p class="prose" style="font-size:20px">Narrow window: the card grows from <b>1/3</b> to <b>1/2</b>. Same HTML, different screen. That's <b>responsive</b>.</p>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 13 STEP 5.3 -->
+<section class="slide" data-title="Step 5.3 · Student count" data-stage="7">
+  <div class="head"><div>
+    <div class="kicker">Step 5.3 · Controller → view</div>
+    <h2 class="title">Show a <span class="r">live count</span></h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <div class="lbl"><b>1</b>Copy this code <span class="file">two files!</span></div>
+      <div class="code sm" data-file="app/controllers/home_controller.rb" data-lang="ruby" data-hl="3"><script type="text/plain">
+class HomeController < ApplicationController
+  def index
+    @student_count = Student.count
+  end
+end
+</script></div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb" data-hl="7"><script type="text/plain">
+<h2 class="h4 mb-3">Directory Overview</h2>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <div class="display-6 fw-bold"><%= @student_count %></div>
+        <div class="text-body-secondary">Students</div>
+      </div>
+    </div>
+  </div>
+</div>
+</script></div>
+    </div>
+    <div class="col">
+      <div class="result"><div class="lbl teal"><b>2</b>Look at what it does</div><span class="chip teal" style="margin-left:auto">IT WORKS</span></div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step5.3-spacing-fixed.png" alt="Directory Overview with a box showing 40 Students"></figure>
+      <div class="lbl"><b>3</b>Explain the code</div>
+      <ul class="explain small">
+        <li>The <b>controller</b> asks the database. The <b>view</b> prints the answer.</li>
+        <li><code>col-6 col-md-4 col-xl-2</code>: 2 per row on phones, 3 on tablets, 6 on big screens.</li>
+      </ul>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 14 WHY @ -->
+<section class="slide" data-title="How did 40 get there?" data-stage="7">
+  <div class="head"><div>
+    <div class="kicker teal">Step 5.3 · Behind the scenes</div>
+    <h2 class="title">How did <span class="t">40</span> get there?</h2>
+  </div><div class="tracker"></div></div>
+  <div class="body" style="gap:28px">
+    <div class="flow">
+      <div class="node"><div class="nk">CONTROLLER</div><h3><code style="font-size:26px">@student_count = Student.count</code></h3><p>Runs first. The <b style="color:var(--text)">@</b> makes it visible to the view.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">DATABASE</div><h3><code style="font-size:26px">SELECT COUNT(*)</code></h3><p>The aggregate you already know. Rails writes it for you.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">VIEW</div><h3><code style="font-size:26px">&lt;%= @student_count %&gt;</code></h3><p>The <b style="color:var(--text)">=</b> means "print the result into the HTML".</p></div>
+    </div>
+    <div class="code xs" data-file="docker compose logs -f web" data-lang="text"><script type="text/plain">
+Student Count (1.8ms)  SELECT COUNT(*) FROM `students` /*action='index',application='DepartmentStudentApplication',controller='home'*/
+</script></div>
+    <div class="cols" style="flex:none;gap:28px">
+      <table class="t" style="font-size:20px">
+        <tr><th>You write</th><th>What happens</th></tr>
+        <tr><td class="m">@student_count</td><td>Instance variable: handed to the view ✓</td></tr>
+        <tr><td class="m">student_count</td><td>Local: dies with the method → <i>undefined local variable</i></td></tr>
+      </table>
+      <table class="t" style="font-size:20px">
+        <tr><th>ERB tag</th><th>Meaning</th></tr>
+        <tr><td class="m">&lt;%= … %&gt;</td><td>Run Ruby <b>and print</b> the result</td></tr>
+        <tr><td class="m">&lt;% … %&gt;</td><td>Run Ruby, print nothing (loops, ifs)</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 15 STEP 5.4 -->
+<section class="slide" data-title="Step 5.4 · Faculty cards" data-stage="8">
+  <div class="head"><div>
+    <div class="kicker">Step 5.4 · Loops + image_tag</div>
+    <h2 class="title">Meet our <span class="r">faculty</span></h2>
+  </div><div class="tracker"></div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <div class="lbl"><b>1</b>Copy this code <span class="file">+ avatar.svg in app/assets/images/</span></div>
+      <div class="code xs" data-file="app/controllers/home_controller.rb" data-lang="ruby" data-hl="1"><script type="text/plain">
+    @teachers = Teacher.order(:name).limit(3)
+</script></div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb" data-hl="4,15"><script type="text/plain">
+<h2 class="h4 mb-3">Meet Our Faculty</h2>
+
+<div class="row g-3 mb-4">
+  <% @teachers.each do |teacher| %>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card h-100 text-center">
+        <div class="card-body">
+          <%= image_tag "avatar.svg", alt: teacher.name,
+                width: 96, height: 96, class: "rounded-circle mb-3" %>
+          <h3 class="card-title h5"><%= teacher.name %></h3>
+          <p class="card-text text-body-secondary"><%= teacher.specialization %></p>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+</script></div>
+    </div>
+    <div class="col">
+      <div class="result"><div class="lbl teal"><b>2</b>Look at what it does</div><span class="chip teal" style="margin-left:auto">IT WORKS</span></div>
+      <figure class="shot" style="margin:0"><img src="screenshots/step5.4-faculty-cards.png" alt="Three faculty cards with avatars: Chris Evans, Chris Hemsworth, Jeremy Renner"></figure>
+      <div class="lbl"><b>3</b>Explain the code</div>
+      <ul class="explain small">
+        <li><b>One card in the code, three on the page.</b> <code>each</code> repeats it per teacher.</li>
+        <li>The loop uses <code>&lt;% %&gt;</code> (no <code>=</code>): it runs, it doesn't print.</li>
+        <li><code>image_tag</code> renders a fingerprinted URL like <code>/assets/avatar-c04e9400.svg</code>. Never type <code>/assets/…</code> by hand.</li>
+      </ul>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 16 DATA FLOW -->
+<section class="slide" data-title="How the data flows">
+  <div class="head"><div>
+    <div class="kicker">Putting it together</div>
+    <h2 class="title">How the data <span class="r">flows</span></h2>
+    <p class="sub">One visit to <code style="font-size:.9em">/</code>, from request to finished page.</p>
+  </div></div>
+  <div class="body" style="justify-content:center;gap:28px">
+    <div class="flow">
+      <div class="node"><div class="nk">01 · BROWSER</div><h3>GET /</h3><p>Someone opens the homepage.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">02 · ROUTE</div><h3>root</h3><div class="nf">"home#index"</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">03 · CONTROLLER</div><h3>index</h3><div class="nf">@student_count<br>@teachers</div></div>
+      <div class="arrow">⇄</div>
+      <div class="node" style="border-color:rgba(63,213,198,.5)"><div class="nk" style="color:var(--teal)">04 · MODEL + DB</div><h3>MySQL</h3><div class="nf">COUNT(*)<br>ORDER BY … LIMIT 3</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">05 · VIEW</div><h3>index.html.erb</h3><p>Prints @variables, loops.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">06 · LAYOUT</div><h3>yield</h3><p>Sidebar + Bootstrap wrap it. HTML goes back.</p></div>
+    </div>
+    <div class="callout teal" style="max-width:1200px">Bootstrap isn't a step: it's just <b>classes inside the view and layout</b>. The browser does the styling.</div>
+  </div>
+</section>
+
+<!-- ============================================================ 17 FINAL CODE -->
+<section class="slide" data-title="Final reference code">
+  <div class="head"><div>
+    <div class="kicker teal">Reference</div>
+    <h2 class="title">The finished <span class="t">code</span></h2>
+    <p class="sub">Everything from today, in two files. Scroll the view to see it all.</p>
+  </div></div>
+  <div class="body"><div class="cols" style="grid-template-columns:.8fr 1.2fr">
+    <div class="col">
+      <div class="code sm" data-file="app/controllers/home_controller.rb" data-lang="ruby"><script type="text/plain">
+class HomeController < ApplicationController
+  def index
+    @student_count = Student.count
+    @teachers = Teacher.order(:name).limit(3)
+  end
+end
+</script></div>
+      <div class="code sm" data-file="config/routes.rb" data-lang="ruby"><script type="text/plain">
+root "home#index"
+</script></div>
+      <div class="code sm" data-file="app/views/layouts/application.html.erb" data-lang="erb"><script type="text/plain">
+<li class="nav-item"><%= sidebar_link "Home", root_path, "home" %></li>
+</script></div>
+    </div>
+    <div class="col">
+      <div class="code xs grow" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<div class="p-5 mb-4 bg-body-tertiary rounded-3">
+  <h1 class="display-5 fw-bold">Department Student Directory</h1>
+  <p class="lead">Explore the people, programs, and academic structure of the department.</p>
+
+  <%= link_to "Browse Students", students_path, class: "btn btn-primary btn-lg" %>
+</div>
+
+<h2 class="h4 mb-3">Explore the Directory</h2>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Departments</h3>
+        <p class="card-text text-body-secondary">Offices and where to find them.</p>
+        <%= link_to "View all", departments_path, class: "btn btn-sm btn-primary" %>
+        <%= link_to "Add new", new_department_path, class: "btn btn-sm btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h4 mb-3">Directory Overview</h2>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card text-center h-100">
+      <div class="card-body">
+        <div class="display-6 fw-bold"><%= @student_count %></div>
+        <div class="text-body-secondary">Students</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h4 mb-3">Meet Our Faculty</h2>
+
+<div class="row g-3 mb-4">
+  <% @teachers.each do |teacher| %>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card h-100 text-center">
+        <div class="card-body">
+          <%= image_tag "avatar.svg", alt: teacher.name,
+                width: 96, height: 96, class: "rounded-circle mb-3" %>
+          <h3 class="card-title h5"><%= teacher.name %></h3>
+          <p class="card-text text-body-secondary"><%= teacher.specialization %></p>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+</script></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 18 YOUR TURN -->
+<section class="slide" data-title="Your turn">
+  <div class="head"><div>
+    <div class="kicker amber">Your turn</div>
+    <h2 class="title">Now <span style="color:var(--amber)">you</span> build it</h2>
+    <p class="sub">Same loop for every task. Do the in-class ones now, finish the rest with your groupmates.</p>
+  </div></div>
+  <div class="body" style="gap:30px">
+    <div class="flow" style="flex:none">
+      <div class="node"><div class="nk">① COPY</div><h3>Copy the code</h3><p>Put it where the task says. Use the Copy button.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">② LOOK</div><h3>Look at the result</h3><p>Reload. Does it match "Expected"? If not, read the error.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nk">③ EXPLAIN</div><h3>Explain it</h3><p>Answer the question. You should be able to say it out loud.</p></div>
+    </div>
+    <div class="cols" style="flex:none">
+      <div class="panel"><h3>In class</h3><ol class="explain small" style="padding-left:0">
+        <li>Browse Teachers button</li><li>Students card</li><li>Teachers count</li><li>Department on each faculty card</li>
+      </ol></div>
+      <div class="panel amber"><h3>Homework · with your groupmates</h3><ol class="explain small" style="padding-left:0">
+        <li>Button spacing · the remaining Explore cards</li><li>The remaining counts</li><li>View profile + See all faculty links</li><li>Phone check + data in your app</li>
+      </ol></div>
+    </div>
+    <div class="callout teal" style="font-size:21px"><b>AI is allowed</b>, and it's how real developers work. The rule: <b>don't paste what you can't explain.</b> Your app is different from mine: your numbers, names and extra resources (Laboratories?) will differ.</div>
+  </div>
+</section>
+
+<!-- ============================================================ 19 IN CLASS A -->
+<section class="slide" data-title="In class · 1 & 2">
+  <div class="head"><div>
+    <div class="kicker amber">Your turn · In class</div>
+    <h2 class="title">Tasks <span style="color:var(--amber)">1 & 2</span></h2>
+  </div></div>
+  <div class="body"><div class="tasks">
+    <div class="task">
+      <div class="task-head"><h3>1 · Browse Teachers</h3><span class="chip amber">IN CLASS</span></div>
+      <p class="where"><b>Where:</b> inside the hero, under the Browse Students button.</p>
+      <div class="lbl"><b>1</b>Copy</div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<%= link_to "Browse Teachers", teachers_path, class: "btn btn-outline-secondary btn-lg" %>
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">A second, outlined button next to Browse Students. Clicking it opens <code>/teachers</code>.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">Why <code>teachers_path</code> and not <code>teacher_path</code>?</p>
+    </div>
+    <div class="task">
+      <div class="task-head"><h3>2 · Students card</h3><span class="chip amber">IN CLASS</span></div>
+      <p class="where"><b>Where:</b> inside the <b>same</b> <code>row</code> as the Departments card.</p>
+      <div class="lbl"><b>1</b>Copy</div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<div class="col-sm-6 col-lg-4">
+  <div class="card h-100">
+    <div class="card-body">
+      <h3 class="card-title h5">Students</h3>
+      <p class="card-text text-body-secondary">Everyone enrolled in the department.</p>
+      <%= link_to "View all", students_path, class: "btn btn-sm btn-primary" %>
+      <%= link_to "Add new", new_student_path, class: "btn btn-sm btn-outline-secondary" %>
+    </div>
+  </div>
+</div>
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">Two cards side by side on a laptop screen.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">What goes wrong if you wrap it in a new <code>row</code>?</p>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 20 IN CLASS B -->
+<section class="slide" data-title="In class · 3 & 4">
+  <div class="head"><div>
+    <div class="kicker amber">Your turn · In class</div>
+    <h2 class="title">Tasks <span style="color:var(--amber)">3 & 4</span></h2>
+  </div></div>
+  <div class="body"><div class="tasks">
+    <div class="task">
+      <div class="task-head"><h3>3 · Teachers count</h3><span class="chip amber">IN CLASS</span></div>
+      <p class="where"><b>Where:</b> controller line in <code>index</code>, box inside the Overview <code>row</code>.</p>
+      <div class="lbl"><b>1</b>Copy · both files</div>
+      <div class="code xs" data-file="app/controllers/home_controller.rb" data-lang="ruby"><script type="text/plain">
+@teacher_count = Teacher.count
+</script></div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<div class="col-6 col-md-4 col-xl-2">
+  <div class="card text-center h-100">
+    <div class="card-body">
+      <div class="display-6 fw-bold"><%= @teacher_count %></div>
+      <div class="text-body-secondary">Teachers</div>
+    </div>
+  </div>
+</div>
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">A second box with <b>your</b> number of teachers.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">Skip the controller line. Why is the box blank, with no error?</p>
+    </div>
+    <div class="task">
+      <div class="task-head"><h3>4 · Department on faculty cards</h3><span class="chip amber">IN CLASS</span></div>
+      <p class="where"><b>Where:</b> inside the loop, under the specialization line.</p>
+      <div class="lbl"><b>1</b>Copy</div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<p class="card-text small text-body-secondary"><%= teacher.department.name %></p>
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">Every faculty card now shows its department, and you wrote it <b>once</b>.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">How can a <code>teacher</code> know its <code>department</code>? Hint: open <code>app/models/teacher.rb</code>.</p>
+      <div class="callout" style="font-size:19px;margin-top:auto"><b>Bonus:</b> watch <code>docker compose logs -f web</code> and reload. How many queries did the cards make? Why?</div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 21 HOMEWORK A -->
+<section class="slide" data-title="Homework · 5 & 6">
+  <div class="head"><div>
+    <div class="kicker amber">Your turn · Homework with groupmates</div>
+    <h2 class="title">Tasks <span style="color:var(--amber)">5 & 6</span></h2>
+  </div></div>
+  <div class="body"><div class="tasks">
+    <div class="task">
+      <div class="task-head"><h3>5 · Button spacing</h3><span class="chip">HOMEWORK</span></div>
+      <p class="where"><b>Where:</b> wrap the two hero buttons.</p>
+      <div class="lbl"><b>1</b>Copy</div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<div class="d-flex gap-2">
+  <%= link_to "Browse Students", students_path, class: "btn btn-primary btn-lg" %>
+  <%= link_to "Browse Teachers", teachers_path, class: "btn btn-outline-secondary btn-lg" %>
+</div>
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">The buttons stop touching. Even spacing between them.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">What do <code>d-flex</code> and <code>gap-2</code> each do?</p>
+    </div>
+    <div class="task">
+      <div class="task-head"><h3>6 · All Explore cards</h3><span class="chip">HOMEWORK</span></div>
+      <p class="where"><b>Where:</b> same <code>row</code>. Then <b>Subjects, Sections</b> + your extras.</p>
+      <div class="lbl"><b>1</b>Copy</div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<div class="col-sm-6 col-lg-4">
+  <div class="card h-100">
+    <div class="card-body">
+      <h3 class="card-title h5">Teachers</h3>
+      <p class="card-text text-body-secondary">The faculty and what they teach.</p>
+      <%= link_to "View all", teachers_path, class: "btn btn-sm btn-primary" %>
+      <%= link_to "Add new", new_teacher_path, class: "btn btn-sm btn-outline-secondary" %>
+    </div>
+  </div>
+</div>
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">On a laptop the cards wrap to rows of 3, automatically.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">Find each helper name on <code>/rails/info/routes</code>.</p>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 22 HOMEWORK B -->
+<section class="slide" data-title="Homework · 7 & 8">
+  <div class="head"><div>
+    <div class="kicker amber">Your turn · Homework with groupmates</div>
+    <h2 class="title">Tasks <span style="color:var(--amber)">7 & 8</span></h2>
+  </div></div>
+  <div class="body"><div class="tasks">
+    <div class="task">
+      <div class="task-head"><h3>7 · All counts</h3><span class="chip">HOMEWORK</span></div>
+      <p class="where"><b>Where:</b> controller + Overview row. Repeat for every resource.</p>
+      <div class="lbl"><b>1</b>Copy · both files</div>
+      <div class="code xs" data-file="app/controllers/home_controller.rb" data-lang="ruby"><script type="text/plain">
+@department_count = Department.count
+</script></div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<div class="col-6 col-md-4 col-xl-2">
+  <div class="card text-center h-100">
+    <div class="card-body">
+      <div class="display-6 fw-bold"><%= @department_count %></div>
+      <div class="text-body-secondary">Departments</div>
+    </div>
+  </div>
+</div>
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">On a wide screen all six counts sit in <b>one</b> row.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">Which part of <code>col-6 col-md-4 col-xl-2</code> makes that happen?</p>
+    </div>
+    <div class="task">
+      <div class="task-head"><h3>8 · Faculty links</h3><span class="chip">HOMEWORK</span></div>
+      <p class="where"><b>Where:</b> first line inside each card (in the loop). Second line under the faculty <code>row</code>.</p>
+      <div class="lbl"><b>1</b>Copy</div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<%= link_to "View profile", teacher, class: "btn btn-sm btn-outline-primary" %>
+</script></div>
+      <div class="code xs" data-file="app/views/home/index.html.erb" data-lang="erb"><script type="text/plain">
+<%= link_to "See all faculty →", teachers_path, class: "btn btn-link" %>
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">Each card opens <b>that</b> teacher's page (<code>/teachers/3</code>…). The link below opens the full list.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">How does passing <code>teacher</code> turn into <code>/teachers/3</code>? Singular or plural route?</p>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 23 HOMEWORK C -->
+<section class="slide" data-title="Homework · 9 & 10">
+  <div class="head"><div>
+    <div class="kicker amber">Your turn · Homework with groupmates</div>
+    <h2 class="title">Tasks <span style="color:var(--amber)">9 & 10</span></h2>
+  </div></div>
+  <div class="body"><div class="tasks">
+    <div class="task">
+      <div class="task-head"><h3>9 · Data in your app</h3><span class="chip">HOMEWORK</span></div>
+      <p class="where"><b>Why:</b> empty tables mean zeros and no faculty cards. Add records with your forms, or write <code>db/seeds.rb</code> for <b>your</b> models.</p>
+      <div class="lbl"><b>1</b>Copy · pattern</div>
+      <div class="code xs" data-file="db/seeds.rb" data-lang="ruby"><script type="text/plain">
+cpe = Department.find_or_create_by!(name: "Computer Engineering") do |d|
+  d.location = "Engineering Building"
+end
+</script></div>
+      <div class="code xs" data-file="terminal" data-lang="bash"><script type="text/plain">
+docker compose run --rm web bin/rails db:seed
+</script></div>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <p class="look">Run it twice. The counts stay the same: no duplicates.</p>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">Why must departments be created before teachers?</p>
+    </div>
+    <div class="task">
+      <div class="task-head"><h3>10 · Phone check</h3><span class="chip">HOMEWORK</span></div>
+      <p class="where"><b>Where:</b> Chrome → <code>F12</code> → <code>Ctrl+Shift+M</code> → pick a phone.</p>
+      <div class="lbl teal"><b>2</b>Look</div>
+      <ul class="explain small">
+        <li>The sidebar turns into a <b>☰ Menu</b> bar.</li>
+        <li>Explore and faculty cards stack, one per row.</li>
+        <li>Counts show <b>two</b> per row.</li>
+        <li>Every button and link still works.</li>
+      </ul>
+      <div class="lbl amber"><b>3</b>Explain</div>
+      <p class="ask">Something broke on the phone? Find the class responsible and fix it. Say what you changed.</p>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================================================ 24 COMMON MISTAKES -->
+<section class="slide" data-title="Common mistakes">
+  <div class="head"><div>
+    <div class="kicker amber">Debugging</div>
+    <h2 class="title">When it <span style="color:var(--amber)">breaks</span></h2>
+    <p class="sub">Read the red title first. Then compare your code with the part that works.</p>
+  </div></div>
+  <div class="body">
+    <table class="t" style="font-size:20px">
+      <tr><th style="width:33%">You see</th><th style="width:33%">Likely cause</th><th>Fix</th></tr>
+      <tr><td><i>missing required keys: [:id]</i></td><td>Singular helper for a list</td><td>Use the plural: <code>teachers_path</code></td></tr>
+      <tr><td>A count is blank, no error</td><td>The <code>@variable</code> was never set</td><td>Add the line in <code>HomeController#index</code></td></tr>
+      <tr><td><i>undefined local variable … student_count</i></td><td>Forgot the <code>@</code> in the view</td><td>Use <code>@student_count</code></td></tr>
+      <tr><td>Each card on its own line</td><td>A new <code>row</code> per card</td><td>Put every <code>col-…</code> in one row</td></tr>
+      <tr><td>Sections touching each other</td><td>No bottom margin on a row</td><td>Look at the Overview row. What does it have that yours doesn't?</td></tr>
+      <tr><td>Weird <code>#&lt;ActiveRecord::Relation …&gt;</code> text</td><td><code>&lt;%= … each %&gt;</code> with <code>=</code></td><td>Loops use <code>&lt;% … %&gt;</code></td></tr>
+      <tr><td>Error about <code>avatar.svg</code> not found</td><td>Image missing or misnamed</td><td>Put it in <code>app/assets/images/</code></td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 25 SUBMISSION -->
+<section class="slide" data-title="Submission">
+  <div class="head"><div>
+    <div class="kicker teal">Submission</div>
+    <h2 class="title">Push it to <span class="t">GitHub</span></h2>
+    <p class="sub">I check your homepage directly from your repository.</p>
+  </div></div>
+  <div class="body"><div class="cols">
+    <div class="col">
+      <div class="lbl"><b>1</b>Commit and push</div>
+      <div class="code sm" data-file="terminal" data-lang="bash"><script type="text/plain">
+git add .
+git commit -m "Add homepage"
+git push
+</script></div>
+      <div class="lbl"><b>2</b>Give me access: pick one</div>
+      <div class="panel teal"><h3>Make the repo public</h3><p class="prose" style="font-size:21px">GitHub → your repo → <b>Settings</b> → General → Danger Zone → <b>Change visibility</b> → Public.</p></div>
+      <div class="panel"><h3>Or add me as a collaborator</h3><p class="prose" style="font-size:21px"><b>Settings</b> → <b>Collaborators</b> → <b>Add people</b> → <code>Pel47</code></p></div>
+    </div>
+    <div class="col">
+      <div class="lbl teal"><b>3</b>Before you submit, check</div>
+      <ul class="explain">
+        <li><code>/</code> opens <b>your</b> homepage, with Home in the sidebar.</li>
+        <li>Hero with <b>two</b> buttons, evenly spaced.</li>
+        <li>An Explore card for <b>every</b> resource in your app.</li>
+        <li>A count for <b>every</b> resource.</li>
+        <li>Faculty cards with department + View profile, and a See all faculty link.</li>
+        <li>Works on a phone-sized screen.</li>
+        <li>Every link goes somewhere real.</li>
+      </ul>
+    </div>
+  </div></div>
+</section>
+
+<div class="controls">
+  <button class="nb" id="prev" aria-label="Previous slide">‹</button>
+  <div class="prog">
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <div class="meta"><span id="stitle"></span><span id="count"></span></div>
+  </div>
+  <button class="nb" id="next" aria-label="Next slide">›</button>
+  <button class="fs" id="fsbtn">⛶ FULLSCREEN</button>
+</div>
+
+</div>
+</div>
+<div class="lb" id="lb" role="dialog" aria-label="Zoomed screenshot"><span class="hint">click or Esc to close</span><img alt=""></div>
+
+<script>
+(() => {
+  /* ---------- stage tracker ---------- */
+  const STAGES = [["1","Route"],["2","Ctrl"],["3","View"],["4","Link"],["5.1","Hero"],["5.2","Explore"],["5.3","Count"],["5.4","Faculty"]];
+  document.querySelectorAll(".tracker").forEach(t => {
+    const sec = t.closest(".slide");
+    const cur = t.dataset.tracker !== undefined ? +t.dataset.tracker : +(sec.dataset.stage || 0);
+    t.innerHTML = STAGES.map(([n, l], i) => {
+      const cls = i + 1 < cur ? "done" : i + 1 === cur ? "now" : "";
+      return `<div class="tk ${cls}"><i>${n}</i><span>${l}</span></div>`;
+    }).join("");
+  });
+
+  /* ---------- syntax highlighting ---------- */
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  function tokenize(src, re, map) {
+    let out = "", last = 0, m;
+    re.lastIndex = 0;
+    while ((m = re.exec(src))) {
+      if (m[0] === "") { re.lastIndex++; continue; }
+      out += esc(src.slice(last, m.index));
+      const g = map.findIndex((_, i) => m[i + 1] !== undefined);
+      out += g < 0 || !map[g] ? esc(m[0]) : `<span class="${map[g]}">${esc(m[0])}</span>`;
+      last = m.index + m[0].length;
+    }
+    return out + esc(src.slice(last));
+  }
+  const RUBY = /(#[^\n]*)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|(@\w+)|(:\w+)(?!:)|\b(class|def|end|do|if|else|elsif|unless|return|true|false|nil|self)\b|\b([A-Z]\w*)\b|\b(\d+(?:\.\d+)?)\b|(\b\w+:)(?=\s)/g;
+  const ruby = s => tokenize(s, RUBY, ["c", "s", "v", "v", "k", "C", "n", "at"]);
+  const HTML = /(<!--[\s\S]*?-->)|(<\/?[\w-]+)|(\s[\w:-]+)(?==)|("[^"]*")|(\/?>)/g;
+  const html = s => tokenize(s, HTML, ["c", "tg", "at", "s", "tg"]);
+  function erb(s) {
+    let out = "", last = 0, m;
+    const re = /<%(#|=|-)?([\s\S]*?)-?%>/g;
+    while ((m = re.exec(s))) {
+      out += html(s.slice(last, m.index));
+      if (m[1] === "#") out += `<span class="c">${esc(m[0])}</span>`;
+      else out += `<span class="e">&lt;%${m[1] || ""}</span>${ruby(m[2])}<span class="e">%&gt;</span>`;
+      last = m.index + m[0].length;
+    }
+    return out + html(s.slice(last));
+  }
+  const SQL = /(`[^`]*`)|(\/\*[\s\S]*?\*\/)|\b(SELECT|FROM|COUNT|ORDER|BY|LIMIT|WHERE)\b|(\(\d+(?:\.\d+)?ms\))/g;
+  const text = s => tokenize(s, SQL, ["v", "c", "k", "n"]);
+  const BASH = /(#[^\n]*)|^(\s*(?:docker|git|cd))\b/gm;
+  const bash = s => tokenize(s, BASH, ["c", "k"]);
+  const HL = { ruby, erb, html, text, bash };
+
+  function dedent(s) {
+    const lines = s.replace(/^\n+|\s+$/g, "").split("\n");
+    const ind = Math.min(...lines.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
+    return lines.map(l => l.slice(ind)).join("\n");
+  }
+
+  document.querySelectorAll(".code").forEach(box => {
+    const raw = dedent(box.querySelector("script").textContent);
+    const hl = new Set((box.dataset.hl || "").split(",").filter(Boolean).map(Number));
+    const lines = (HL[box.dataset.lang] || esc)(raw).split("\n");
+    const one = lines.length === 1;
+    const bar = `<div class="code-bar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">${esc(box.dataset.file || "")}</span>${box.dataset.tag ? `<span class="tag">${box.dataset.tag}</span>` : ""}<button class="copy" type="button">COPY</button></div>`;
+    box.innerHTML = bar + `<pre class="${one ? "nonum" : ""}">` + lines.map((l, i) => `<span class="ln${hl.has(i + 1) ? " hl" : ""}">${l || " "}</span>`).join("") + "</pre>";
+    box.querySelector(".copy").addEventListener("click", e => {
+      const btn = e.currentTarget;
+      const done = () => { btn.textContent = "COPIED ✓"; btn.classList.add("ok"); setTimeout(() => { btn.textContent = "COPY"; btn.classList.remove("ok"); }, 1600); };
+      const fallback = () => { const ta = document.createElement("textarea"); ta.value = raw; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); };
+      navigator.clipboard ? navigator.clipboard.writeText(raw).then(done, fallback) : fallback();
+    });
+  });
+
+  /* ---------- navigation ---------- */
+  const slides = [...document.querySelectorAll(".slide")];
+  const total = slides.length;
+  let cur = 0;
+  const $ = id => document.getElementById(id);
+  function go(i, push = true) {
+    cur = Math.max(0, Math.min(total - 1, i));
+    slides.forEach((s, k) => { s.classList.toggle("active", k === cur); s.classList.toggle("past", k < cur); });
+    $("fill").style.width = ((cur + 1) / total * 100) + "%";
+    $("count").textContent = String(cur + 1).padStart(2, "0") + " / " + String(total).padStart(2, "0");
+    $("stitle").textContent = slides[cur].dataset.title || "";
+    $("prev").disabled = cur === 0; $("next").disabled = cur === total - 1;
+    if (push) history.replaceState(null, "", "#" + (cur + 1));
+  }
+  $("prev").onclick = () => go(cur - 1);
+  $("next").onclick = () => go(cur + 1);
+  const fs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  $("fsbtn").onclick = fs;
+
+  const lb = $("lb"), lbImg = lb.querySelector("img");
+  document.querySelectorAll(".shot").forEach(f => f.addEventListener("click", () => { const im = f.querySelector("img"); lbImg.src = im.src; lbImg.alt = im.alt; lb.classList.add("open"); }));
+  lb.addEventListener("click", () => lb.classList.remove("open"));
+
+  addEventListener("keydown", e => {
+    if (lb.classList.contains("open")) { if (e.key === "Escape" || e.key === " ") { e.preventDefault(); lb.classList.remove("open"); } return; }
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+    else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(total - 1);
+    else if (e.key === "f" || e.key === "F") fs();
+  });
+
+  /* ---------- scale the 1920×1080 stage to the window ---------- */
+  const stage = $("stage");
+  const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transform = `scale(${s})`; };
+  addEventListener("resize", fit); document.addEventListener("fullscreenchange", fit); fit();
+
+  const start = parseInt(location.hash.slice(1), 10);
+  go(Number.isFinite(start) ? start - 1 : 0, false);
+})();
+</script>
+</body>
+</html>

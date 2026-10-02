@@ -49,3 +49,6 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+
+# Lesson slides and screenshots (not needed inside the app image)
+/lessons
